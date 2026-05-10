@@ -1,61 +1,98 @@
-# SWEN3165 Quiz #3
+# Auth Service — Load Testing with Artillery.io
 
-Artillery documentation https://artillery.io/docs/
+> Load-test scenarios for an authentication and session-management API, written with Artillery.io.
 
-# The auth service
+Built for **SWEN3165 — Software Quality Assurance & Testing** at the University of the West Indies, Mona.
 
-Install dependencies with `npm install`
+## Overview
 
-This project sets up a demo service, defined in the `auth` folder. Start it:
+A test suite that load-tests a Node.js authentication API using [Artillery.io](https://artillery.io). The project demonstrates:
+
+- Realistic multi-step request scenarios (authenticate → capture token → keep-alive)
+- Response value capture and chaining between requests
+- Coverage of both happy-path (200 OK) and failure-path (401 Unauthorized) responses
+- Performance assessment under simulated concurrent load
+
+The auth service itself is included in the `auth/` folder as the System Under Test.
+
+## Tech Stack
+
+- **Language:** JavaScript (Node.js)
+- **Load Testing:** Artillery.io
+- **Security Scanning:** Snyk
+- **Build:** Babel
+
+## Project Structure
 
 ```
+├── auth/                   # The auth API (System Under Test)
+├── artillery-load-tests/   # Artillery load test scenarios
+├── testdoc.pdf             # Assessment brief
+├── .snyk                   # Snyk security policy
+├── .babelrc                # Babel config
+└── package.json
+```
+
+## The Auth Service Under Test
+
+The included service exposes two endpoints:
+
+### `GET /authenticate`
+
+Authenticates a user and returns a session token. Matching `username` and `password` return 200 OK with a token; mismatched credentials return 401.
+
+```bash
+# Success
+curl -v "http://localhost:9876/authenticate?username=smith&password=smith"
+# → 200 OK { "sessionToken": "session_4137", "userId": "user_smith" }
+
+# Failure
+curl -v "http://localhost:9876/authenticate?username=john&password=smith"
+# → 401 Unauthorized
+```
+
+### `GET /session/keep-alive`
+
+Validates that a session token is still active. Returns 200 OK with the token if found, 401 if not.
+
+```bash
+curl -v "http://localhost:9876/session/keep-alive?sessionToken=session_4137"
+# → 200 OK { "sessionToken": "session_4137" }
+```
+
+## Setup
+
+```bash
+npm install
+```
+
+## Running
+
+**Step 1 — Start the auth service** (in one terminal):
+```bash
 npm start
 ```
+The service listens on `http://localhost:9876`.
 
-This service exposes two endpoints:
-
-### GET /authenticate
-If the provided username and password are the same, returns status (200 OK) and a JSON response with `userId` and `sessionToken`.
-
-e.g. `curl -v http://localhost:9876/authenticate?username=smith&password=smith`
-OR enter the following URL in your browser: http://localhost:9876/authenticate?username=smith&password=smith 
-will return
-
-```
-(200 OK)
-{
-    "sessionToken": "session_4137",
-    "userId": "user_smith"
-}
-```
-The generated `sessionToken` is added to an in-memory list and can then be used with the `/session/keep-alive` endpoint.
-
-If the username and password are not the same, we get back a `401 Unauthorized`.
-
-e.g. `curl -v http://localhost:9876/authenticate?username=john&password=smith`
-OR enter the following URL in your browser: http://localhost:9876/authenticate?username=john&password=smith
-
-### GET /session/keep-alive
-If the session exists, echos back the provided `sessionToken` with a (200 OK) response code.
-
-e.g. `curl -v http://localhost:9876/session/keep-alive?sessionToken=session_4137`
-OR enter the following URL in your browser: http://localhost:9876/session/keep-alive?sessionToken=session_4137
-returns
-```
-(200 OK)
-{
-    "sessionToken": "session_4137"
-}
+**Step 2 — Run the load tests** (in a separate terminal):
+```bash
+cd artillery-load-tests
+artillery run <scenario-file>.yml
 ```
 
-If the session does not exist, we get back a `401 Unauthorized`
+Artillery will print a real-time summary including request rate, response times (median, p95, p99), and status-code distribution.
 
-# Instructions
+## Testing Concepts Demonstrated
 
-Create test scenarios to load test the two endpoints for the various responses (outputs) that they give. You will be assessed for the quality of the tests that you write.
+- Multi-step scenario design with request chaining
+- Response value capture (`capture` directive) — extracting `sessionToken` from one response and feeding it into the next
+- Validating both 2xx and 4xx response paths under load
+- Throughput, latency, and error-rate measurement under sustained traffic
+- Performance testing as the third tier of the test pyramid (alongside unit and end-to-end testing)
 
-### HINT
-* Call the /authenticate endpoint, and capture the `sessionToken` returned
-* Call the /session/keep-alive endpoint with the captured `sessionToken`
-* capture - Set this to capture values from the response body of a request and store those in variables.
-* Taken from https://www.artillery.io/docs/reference/engines/http
+## References
+
+- [Artillery.io Documentation](https://artillery.io/docs/)
+- [Artillery HTTP Engine — `capture` directive](https://www.artillery.io/docs/reference/engines/http)
+
+Built by [Josiah-John Green](https://github.com/j0hnc0d3s) — Software Engineering, UWI Mona '26.
